@@ -199,17 +199,6 @@ Once models are downloaded, the system runs completely offline.
 
 ---
 
-## Why this project is interview-ready
-
-- Offline-first design
-- No paid APIs
-- Robust Manglish handling
-- Explicit sentence reconstruction
-- Deterministic, explainable MoM logic
-- Clear architectural trade-offs
-- Production-style error handling
-
----
 
 ## Run command (PowerShell)
 
