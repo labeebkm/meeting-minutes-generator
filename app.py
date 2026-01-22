@@ -16,13 +16,34 @@ APP_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = APP_DIR / "output"
 
 
+# def _save_uploaded_file(uploaded_file) -> str:
+#     ensure_dir(str(APP_DIR / "tmp"))
+#     suffix = Path(uploaded_file.name).suffix.lower()
+#     ts = int(time.time())
+#     out_path = APP_DIR / "tmp" / f"upload_{ts}{suffix}"
+#     with open(out_path, "wb") as f:
+#         f.write(uploaded_file.getbuffer())
+#     return str(out_path)
+
 def _save_uploaded_file(uploaded_file) -> str:
-    ensure_dir(str(APP_DIR / "tmp"))
+    tmp_dir = APP_DIR / "tmp"
+    ensure_dir(str(tmp_dir))
+
+    # FORCE stable filename (Streamlit rerun safe)
     suffix = Path(uploaded_file.name).suffix.lower()
-    ts = int(time.time())
-    out_path = APP_DIR / "tmp" / f"upload_{ts}{suffix}"
+    out_path = tmp_dir / f"upload{suffix}"
+
+    uploaded_file.seek(0)   # CRITICAL
+    data = uploaded_file.read()
+
+    if not data:
+        raise RuntimeError("Uploaded file is empty")
+
     with open(out_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+
     return str(out_path)
 
 
@@ -57,7 +78,8 @@ def main() -> None:
                 cleaned_transcript = clean_text(raw_transcript)
 
                 st.write("3) Malayalam-to-English translation (offline MarianMT)…")
-                english_transcript = clean_text(translate_to_english(cleaned_transcript))
+                #english_transcript = clean_text(translate_to_english(cleaned_transcript))
+                english_transcript = cleaned_transcript
 
                 st.write("4) English text summarization (t5-small)…")
                 minutes = clean_text(generate_summary(english_transcript))

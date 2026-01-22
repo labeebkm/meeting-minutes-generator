@@ -40,10 +40,15 @@ def transcribe_audio(audio_path: str) -> str:
     audio = whisper.pad_or_trim(audio)
     mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
+    # options = whisper.DecodingOptions(
+    #     task="transcribe",
+    #     language=None,
+    #     fp16=False,
+    # )
+
     options = whisper.DecodingOptions(
-        task="transcribe",
-        language=None,
-        fp16=False,
+    task="translate",   
+    fp16=False,
     )
 
     result = whisper.decode(model, mel, options)
