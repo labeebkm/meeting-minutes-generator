@@ -1,34 +1,65 @@
-# meeting-minutes-generator
+# Meeting Minutes Generator (Offline, CPU-only)
 
-Offline (CPU-only) Meeting Minutes generator for Manglish (Malayalam + English mixed speech).
+An **offline, CPU-only Meeting Minutes (MoM) generator** for multilingual meetings, with strong support for **Manglish (Malayalam + English mixed speech)** and other Indian language mixtures.
 
-## What it does
+The system converts **any spoken language → English transcript → structured Minutes of Meeting**, without requiring internet access at runtime.
+
+---
+
+## What this project does
 
 - Accepts a recorded meeting audio file (`.wav` / `.mp3`)
-- Transcribes using **OpenAI Whisper (open-source, multilingual)**
-- Translates Malayalam script to English **offline** using HuggingFace Transformers
-- Generates structured **Minutes of Meeting (MoM)** (English) using **T5-small** summarization
-- Provides a simple **Streamlit** UI for demo
-- Saves outputs as plain text files in `output/`
+- Transcribes and **normalizes all languages into English** using **OpenAI Whisper (open-source)**
+- Generates structured **Minutes of Meeting (MoM)** using **T5-small summarization**
+- Runs **fully offline** after a one-time model download
+- Uses a simple **Streamlit UI** for demo and evaluation
+- Saves outputs as plain text files
 
-## Architecture (end-to-end)
+---
 
-1. `transcribe.py`: **Audio → Text** using Whisper (**base**, task="transcribe", multilingual)
-2. `utils.py`: **Text cleaning and normalization**
-3. `translate.py`: Malayalam-to-English **TEXT translation** using MarianMT (`Helsinki-NLP/opus-mt-ml-en`) preserving English technical terms
-4. `summarize.py`: English text summarization using **t5-small** (CPU-friendly), chunked to **max 512 tokens**
-5. `output/`: Save outputs (`transcript.txt`, `meeting_minutes.txt`)
-6. `app.py`: Streamlit UI (upload → button → display + autosave)
+## Key design decision (important)
 
-## Repo layout
+Instead of transcribing speech into the original language and translating later, this project uses:
 
-```
+**Whisper’s `task="translate"` mode**  
+to convert *any spoken language directly into English at the ASR stage*.
+
+This significantly improves robustness for:
+- Manglish (Malayalam + English)
+- Tanglish (Tamil + English)
+- Hinglish (Hindi + English)
+- Mixed multilingual meetings
+
+It also simplifies downstream NLP tasks like summarization.
+
+---
+
+## End-to-end architecture
+
+Audio (.wav / .mp3)
+        ↓
+Whisper ASR (base, task="translate")
+        ↓
+English transcript
+        ↓
+Text cleaning & normalization
+        ↓
+T5-small summarization (CPU-only, chunked)
+        ↓
+Minutes of Meeting (MoM)
+        ↓
+Saved as text + displayed in Streamlit UI
+
+---
+
+## Repository layout
+
 meeting-minutes-generator/
-├── app.py
-├── transcribe.py
-├── translate.py
-├── summarize.py
-├── utils.py
+├── app.py                 # Streamlit UI
+├── transcribe.py          # Whisper ASR (audio → English)
+├── summarize.py           # MoM generation using T5-small
+├── utils.py               # Text cleaning, chunking utilities
+├── download_models.py     # One-time model download helper
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
@@ -37,100 +68,142 @@ meeting-minutes-generator/
 └── output/
     ├── transcript.txt
     └── meeting_minutes.txt
-```
 
-## Installation (Windows / CPU-only)
+---
 
-### 1) Create and activate a virtual environment
+## Installation (Windows, CPU-only)
 
-```bash
+### 1) Create and activate a Conda environment (recommended)
+
 cd "meeting-minutes-generator"
-python -m venv .venv
-.venv\Scripts\activate
-```
+conda create -p ./momenv python=3.10 -y
+conda activate ./momenv
 
-### 2) Install dependencies
+Note:
+This project was developed and tested using **Conda on Windows**.
+Conda avoids common issues with `torch`, `whisper`, and native dependencies.
 
-```bash
-pip install --upgrade pip
+---
+
+### 2) Install Python dependencies
+
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-```
 
-### 3) (One-time) Download models while online
-
-Run this once on an internet-connected machine to populate local caches:
-
-```bash
-python download_models.py
-```
-
-After this step, you can run the app **offline**.
+---
 
 ### 3) Install FFmpeg (required by Whisper)
 
-Whisper needs `ffmpeg` available in your PATH.
+Whisper requires **FFmpeg** for audio decoding.
 
-- Install via `winget`:
+Recommended (Windows):
 
-```bash
-winget install Gyan.FFmpeg
-```
+1. Download FFmpeg from:
+   https://www.gyan.dev/ffmpeg/builds/
+2. Download **ffmpeg-release-essentials.zip**
+3. Extract and place it at:
 
-Then open a new terminal and verify:
+C:\ffmpeg\bin\ffmpeg.exe
 
-```bash
-ffmpeg -version
-```
+4. Register FFmpeg explicitly inside the Conda environment:
+
+conda env config vars set FFMPEG_BINARY=C:\ffmpeg\bin\ffmpeg.exe
+conda deactivate
+conda activate ./momenv
+
+This avoids PATH length issues on Windows and works reliably with Conda.
+
+---
+
+## One-time model download (internet required once)
+
+Run this **once** on a machine with internet access:
+
+python download_models.py
+
+This downloads and caches locally:
+- Whisper model: base
+- Summarization model: t5-small
+
+After this step, the application runs **fully offline**.
+
+---
 
 ## Run the demo UI
 
-```bash
-streamlit run app.py
-```
+python -m streamlit run app.py
+
+A browser window will open automatically.
+
+---
 
 ## Sample workflow
 
-1. Launch the UI (`streamlit run app.py`)
+1. Launch the UI
 2. Upload a `.wav` or `.mp3` meeting recording
 3. Click **Generate Minutes**
-4. The app shows:
-   - **Full English transcript**
-   - **Bullet-point Minutes of Meeting**
+4. The app displays:
+   - Full English transcript
+   - Bullet-point Minutes of Meeting
 5. Outputs are saved to:
-   - `output/transcript.txt`
-   - `output/meeting_minutes.txt`
+   - output/transcript.txt
+   - output/meeting_minutes.txt
 
-## Notes on Manglish handling
+---
 
-- Whisper is used for multilingual transcription and handles code-switching well.
-- For translation:
-  - If Malayalam **Unicode script** is detected, it is translated offline using `Helsinki-NLP/opus-mt-ml-en`.
-  - English/technical words (Latin script) are protected with placeholders and restored after translation.
-  - If the transcript is already Latin script (Romanized Manglish), translation is skipped (the text is treated as already English-like).
+## Multilingual & Manglish handling
 
-## Offline-only requirement (model download)
+- Whisper automatically detects the spoken language
+- Using `task="translate"`, **all speech is normalized into English**
+- This handles:
+  - Manglish (Malayalam + English)
+  - Tamil / Tanglish
+  - Hindi / Hinglish
+  - Mixed multilingual conversations
+- No separate translation model is required at runtime
 
-This project runs **offline-only** at inference time. You must download the models once on a machine with internet, then reuse the local cache offline:
+This design greatly improves summarization accuracy.
 
-- Whisper: `base`
-- Translation: `Helsinki-NLP/opus-mt-ml-en`
-- Summarization: `t5-small`
+---
 
-When offline, the code loads HuggingFace models with `local_files_only=True` and will error clearly if the cache is missing.
+## Offline-only guarantee
+
+- All models are loaded from **local cache only**
+- No API calls
+- No cloud dependencies
+- Clear error messages if models are missing
+
+Once models are downloaded, the system runs **completely offline**.
+
+---
 
 ## Limitations
 
-- **Romanized Malayalam** (Manglish written in Latin script) is not reliably translatable without a specialized transliteration/MT model.
-- CPU-only summarization/translation is slower; long meetings can take minutes.
-- T5-small summaries are useful but not “perfect” MoM; accuracy depends on audio quality and meeting structure.
+- CPU-only inference is slower for long meetings
+- Whisper accuracy depends on audio quality
+- T5-small summaries are useful but not perfect MoM replacements
+- No speaker diarization yet
+
+---
 
 ## Future improvements
 
-- Add a diarization step (speaker separation) using offline tools (e.g., pyannote alternatives that are CPU-friendly).
-- Replace the translation heuristic with a better Malayalam/English mixed-segment detector and per-segment translation.
-- Add a “key decisions / action items / owners / due dates” extraction pass using lightweight rules + NER.
-- Add caching for loaded models to speed up repeated runs (Streamlit `st.cache_resource`).
+- Speaker diarization (offline-friendly)
+- Action item / decision extraction
+- Named entity recognition (owners, dates)
+- Streamlit model caching for faster reruns
+- Optional GPU acceleration
 
+---
+
+## Why this project is interview-ready
+
+- Offline-first design
+- No paid APIs
+- Robust multilingual handling
+- Clear architectural trade-offs
+- Realistic constraints (CPU-only, Windows)
+- Clean separation of ASR and NLP stages
 
 
 
