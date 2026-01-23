@@ -58,6 +58,55 @@ Minutes of Meeting
     ↓
 Saved as text + displayed in Streamlit UI
 
+
+# Block diagram
+┌──────────────┐
+│  Meeting     │
+│  Audio (.mp3 │
+│  / .wav)     │
+└──────┬───────┘
+       │
+       ▼
+┌────────────────────┐
+│ Speech-to-Text     │
+│ (Whisper – offline │
+│ multilingual STT)  │
+└──────┬─────────────┘
+       │
+       ▼
+┌──────────────────────────┐
+│ Language Detection &     │
+│ Text Cleaning            │
+│ - Detect Malayalam       │
+│ - Clean filler/noise     │
+└──────┬───────────────────┘
+       │
+       ▼
+┌──────────────────────────┐
+│ Translation Layer        │
+│ (Hugging Face MarianMT)  │
+│ - Malayalam → English    │
+│ - Offline, CPU-only      │
+│ - Preserve English terms│
+└──────┬───────────────────┘
+       │
+       ▼
+┌──────────────────────────┐
+│ Post-processing          │
+│ - Restore technical      │
+│   English words          │
+│ - Chunk merge & cleanup  │
+└──────┬───────────────────┘
+       │
+       ▼
+┌──────────────────────────┐
+│ MoM Generator            │
+│ - Agenda                 │
+│ - Decisions              │
+│ - Action Items           │
+│ - Participants           │
+└──────────────────────────┘
+
 ---
 
 ## Repository layout
